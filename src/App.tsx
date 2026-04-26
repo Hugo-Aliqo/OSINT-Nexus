@@ -1,7 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Terminal, ShieldAlert, Globe, MapPin, Smartphone, Mail, Send, Database, Bot, ExternalLink, AlertTriangle, CheckCircle } from 'lucide-react';
-import { identifyTargetType, parsePhoneData } from './lib/osintHelpers';
+import { Search, Terminal, ShieldAlert, Globe, MapPin, Smartphone, Mail, Send, Database, Bot, ExternalLink, AlertTriangle, CheckCircle, Linkedin, Twitter, Facebook, Instagram, Github, Youtube, MessageCircle } from 'lucide-react';
+import { identifyTargetType, parsePhoneData, generateGoogleDorks, generateQuickLinks } from './lib/osintHelpers';
 import { scanTarget, askOsintQuestion, OsintReport, ChatMessage } from './services/osintAgent';
+
+const getSocialIcon = (platform: string) => {
+  const p = platform.toLowerCase();
+  if (p.includes('linkedin')) return <Linkedin size={14} />;
+  if (p.includes('twitter') || p.includes('x')) return <Twitter size={14} />;
+  if (p.includes('facebook')) return <Facebook size={14} />;
+  if (p.includes('instagram')) return <Instagram size={14} />;
+  if (p.includes('github')) return <Github size={14} />;
+  if (p.includes('youtube')) return <Youtube size={14} />;
+  if (p.includes('whatsapp') || p.includes('telegram') || p.includes('signal')) return <MessageCircle size={14} />;
+  return <CheckCircle size={14} />;
+};
 
 export default function App() {
   const [targetInput, setTargetInput] = useState('');
@@ -164,7 +176,71 @@ export default function App() {
                         </div>
                       </div>
                     )}
+
+                    {report?.geolocation && (
+                      <div className="mt-4 pt-4 border-t border-slate-800/80">
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+                          <MapPin size={12} className="text-emerald-500" /> AI Geolocation Analysis
+                        </h4>
+                        <div className="p-3 bg-slate-950/40 border border-slate-800/80 rounded-lg flex flex-col gap-2">
+                          <div className="flex justify-between items-start">
+                            <span className="text-sm font-mono text-emerald-400 break-words">{report.geolocation.location}</span>
+                            <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 whitespace-nowrap ml-2">
+                              {report.geolocation.confidence} CONFIDENCE
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 font-light flex items-center gap-1.5">
+                            <span className="text-slate-500 font-medium">SOURCE:</span> {report.geolocation.source}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </section>
+
+                  {/* QUICK LINKS & DORKS GRID */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {/* Quick Links */}
+                    <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                        <ShieldAlert size={14}/> Quick Links
+                      </h3>
+                      <div className="space-y-3">
+                        {generateQuickLinks(target, targetType).map((link, i) => (
+                          <a 
+                            key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+                            className="group p-3 border border-slate-800/80 bg-slate-950/30 rounded-lg hover:border-sky-500/30 hover:bg-slate-800/50 transition-all flex flex-col gap-1.5"
+                          >
+                            <div className="flex justify-between items-center text-slate-200">
+                              <span className="text-sm font-semibold">{link.name}</span>
+                              <ExternalLink size={14} className="text-slate-600 group-hover:text-sky-400 transition-colors" />
+                            </div>
+                            <p className="text-[11px] text-slate-400 leading-relaxed font-light">{link.description}</p>
+                          </a>
+                        ))}
+                        {generateQuickLinks(target, targetType).length === 0 && (
+                          <p className="text-sm text-slate-500 italic">No specific tools for this format.</p>
+                        )}
+                      </div>
+                    </section>
+
+                    {/* Google Dorking Suggestions */}
+                    <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col shadow-lg">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                        <Database size={14}/> Google Dorking Suggestions
+                      </h3>
+                      <div className="space-y-2 flex-1">
+                        {generateGoogleDorks(target).map((dork, i) => (
+                          <a 
+                            key={i} href={dork.url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center justify-between p-3 border border-slate-800/80 bg-slate-950/30 rounded-lg hover:bg-slate-800/50 text-sm font-medium text-slate-300 hover:text-sky-400 hover:border-sky-500/30 transition-all"
+                          >
+                            <span>{dork.name}</span>
+                            <ExternalLink size={14} className="text-slate-600"/>
+                          </a>
+                        ))}
+                      </div>
+                    </section>
+                  </div>
 
                   {/* INTEGRATED RECONNAISSANCE ENGINE */}
                   <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
@@ -202,9 +278,25 @@ export default function App() {
                             <div className="bg-slate-950/40 p-4 rounded-lg border border-slate-800/80">
                               <h4 className="text-[10px] font-bold uppercase text-slate-500 mb-3">Social Media Mentions</h4>
                               <ul className="text-xs text-slate-300 space-y-2 font-light">
-                                 {report.socialMediaMentions.length > 0 ? report.socialMediaMentions.map((m, i) => (
-                                   <li key={i} className="flex gap-2 items-start"><CheckCircle size={14} className="text-emerald-500 shrink-0 mt-0.5" /> <span className="leading-relaxed">{m}</span></li>
-                                 )) : <li className="text-slate-500 italic">No direct mentions found.</li>}
+                                 {report.socialMediaMentions.length > 0 ? report.socialMediaMentions.map((m, i) => {
+                                   const IconComponent = getSocialIcon(m.platform);
+                                   return (
+                                     <li key={i} className="flex gap-2 items-start mb-2 last:mb-0">
+                                       <span className="text-sky-400 shrink-0 mt-0.5 opacity-80">
+                                         {IconComponent}
+                                       </span>
+                                       <div className="flex flex-col">
+                                         <span className="font-semibold text-sky-200">{m.platform}</span>
+                                         <span className="leading-relaxed">{m.text}</span>
+                                         {m.url && m.url.trim() !== '' && (
+                                           <a href={m.url} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 text-[10px] flex items-center gap-1 mt-1 font-medium transition-colors w-fit">
+                                             <ExternalLink size={10} /> View Source
+                                           </a>
+                                         )}
+                                       </div>
+                                     </li>
+                                   );
+                                 }) : <li className="text-slate-500 italic">No direct mentions found.</li>}
                               </ul>
                             </div>
                             <div className="bg-slate-950/40 p-4 rounded-lg border border-slate-800/80">

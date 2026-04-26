@@ -4,7 +4,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export interface OsintReport {
   summary: string;
-  socialMediaMentions: string[];
+  socialMediaMentions: Array<{
+    platform: string;
+    url?: string;
+    text: string;
+  }>;
   publicInfoSurfaces: string[];
   riskAssessment: string;
   integratedTools: Array<{
@@ -12,6 +16,11 @@ export interface OsintReport {
     status: string;
     findings: string;
   }>;
+  geolocation?: {
+    location: string;
+    confidence: string;
+    source: string;
+  } | null;
 }
 
 export async function scanTarget(target: string): Promise<OsintReport> {
@@ -41,7 +50,19 @@ Réponds STRICTEMENT en JSON suivant le schéma fourni.`,
         type: Type.OBJECT,
         properties: {
           summary: { type: Type.STRING, description: "Résumé de l'analyse OSINT et des conclusions tirées des modules intégrés." },
-          socialMediaMentions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Résultats précis trouvés sur les réseaux sociaux." },
+          socialMediaMentions: { 
+            type: Type.ARRAY, 
+            items: { 
+              type: Type.OBJECT,
+              properties: {
+                platform: { type: Type.STRING, description: "Nom de la plateforme (ex: LinkedIn, Twitter, Facebook, GitHub, etc)." },
+                url: { type: Type.STRING, description: "URL vers la mention si connue, sinon chaîne vide." },
+                text: { type: Type.STRING, description: "Description de la mention ou du profil." }
+              },
+              required: ["platform", "text"]
+            }, 
+            description: "Résultats précis trouvés sur les réseaux sociaux." 
+          },
           publicInfoSurfaces: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Sites, annuaires ou documents publics mentionnant la cible." },
           riskAssessment: { type: Type.STRING, description: "Évaluation du risque de sécurité globale." },
           integratedTools: {
@@ -56,6 +77,17 @@ Réponds STRICTEMENT en JSON suivant le schéma fourni.`,
               required: ["toolName", "status", "findings"]
             },
             description: "Liste des modules d'analyse simulés et leurs résultats."
+          },
+          geolocation: {
+            type: Type.OBJECT,
+            description: "Géolocalisation déduite ou trouvée (pays, ville, région). Null si aucune localisation n'est trouvée.",
+            nullable: true,
+            properties: {
+              location: { type: Type.STRING, description: "La localisation (ex: 'Paris, France', 'US (indicatif)')" },
+              confidence: { type: Type.STRING, description: "Niveau de confiance (ex: 'Élevé', 'Moyen', 'Faible')" },
+              source: { type: Type.STRING, description: "Source de la localisation (ex: 'Indicatif téléphonique', 'LinkedIn', 'Fuite de données')" }
+            },
+            required: ["location", "confidence", "source"]
           }
         },
         required: ["summary", "socialMediaMentions", "publicInfoSurfaces", "riskAssessment", "integratedTools"]
@@ -73,7 +105,8 @@ Réponds STRICTEMENT en JSON suivant le schéma fourni.`,
         socialMediaMentions: [],
         publicInfoSurfaces: [],
         riskAssessment: "Inconnu.",
-        integratedTools: []
+        integratedTools: [],
+        geolocation: null
     }
   }
 }
