@@ -1,20 +1,37 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🔍 OSINT-Nexus
 
-# Run and deploy your AI Studio app
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/Hugo-Aliqo/OSINT-Nexus/graphs/commit-activity)
 
-This contains everything you need to run your app locally.
+**OSINT-Nexus** est un framework d'investigation numérique conçu pour centraliser et automatiser la collecte d'informations provenant de sources ouvertes. Que ce soit pour de la recherche d'empreinte numérique, de l'analyse de menaces (Threat Intel) ou de l'investigation sur des réseaux sociaux, Nexus offre une interface unifiée pour corréler les données.
 
-View your app in AI Studio: https://ai.studio/apps/d65d90d1-ee9a-4795-bc98-c1c07105978c
+---
 
-## Run Locally
+## ✨ Fonctionnalités
 
-**Prerequisites:**  Node.js
+- 👤 **Analyse de Profils :** Recherche de pseudos (usernames) sur plus de 100 plateformes sociales.
+- 🌐 **Intelligence Réseau :** Scan de domaines, DNS, sous-domaines et récupération de données WHOIS.
+- 📧 **Investigation d'Emails :** Vérification de format, détection de fuites de données (breach detection) et liens avec des comptes tiers.
+- 📱 **Numéros de Téléphone :** Identification de l'opérateur, de la localisation et des comptes associés.
+- 🗺️ **Visualisation :** (Optionnel si inclus) Génération de graphes de relations entre les entités trouvées.
+- 🤖 **IA Assistée :** Intégration possible avec des LLM pour synthétiser les rapports d'investigation.
 
+---
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🚀 Installation
+
+### Prérequis
+
+- Python 3.9 ou supérieur
+- Un environnement virtuel (recommandé)
+
+### Clonage et Configuration
+
+```bash
+# Cloner le dépôt
+git clone [https://github.com/Hugo-Aliqo/OSINT-Nexus.git](https://github.com/Hugo-Aliqo/OSINT-Nexus.git)
+cd OSINT-Nexus
+
+# Installer les dépendances
+pip install -r requirements.txt
