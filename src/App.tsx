@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Terminal, ShieldAlert, Globe, MapPin, Smartphone, Mail, Send, Database, Bot, ExternalLink, AlertTriangle, CheckCircle, Linkedin, Twitter, Facebook, Instagram, Github, Youtube, MessageCircle, Play, Loader2 } from 'lucide-react';
+import { Search, Terminal, ShieldAlert, Globe, MapPin, Smartphone, Mail, Send, Database, Bot, ExternalLink, AlertTriangle, CheckCircle, Linkedin, Twitter, Facebook, Instagram, Github, Youtube, MessageCircle, Play, Loader2, User, Briefcase, Fingerprint, Image as ImageIcon } from 'lucide-react';
 import { identifyTargetType, parsePhoneData } from './lib/osintHelpers';
 import { scanTarget, askOsintQuestion, OsintReport, ChatMessage, runOsintModule, ModuleResult } from './services/osintAgent';
 
@@ -16,11 +16,15 @@ const getSocialIcon = (platform: string) => {
 };
 
 const OSINT_MODULES = [
-  { id: 'linkedin', name: 'LinkedIn Deep Search', query: 'site:linkedin.com', icon: <Linkedin size={14}/> },
-  { id: 'facebook', name: 'Facebook Profiling', query: 'site:facebook.com', icon: <Facebook size={14}/> },
-  { id: 'twitter', name: 'Twitter / X Footprint', query: 'site:twitter.com', icon: <Twitter size={14}/> },
-  { id: 'documents', name: 'Public Documents (PDF/DOC/XLS)', query: 'filetype:pdf OR filetype:doc OR filetype:xls', icon: <Database size={14}/> },
-  { id: 'leaks', name: 'Data Leaks & Breaches (Pastebin/etc)', query: 'pastebin OR leak OR breach OR password', icon: <ShieldAlert size={14}/> },
+  { id: 'identity', name: 'Identity & Real Name Extraction', query: 'Recherche active de CV, biographies, annuaires publics, et pages "À propos" pour déduire le vrai Nom, Prénom, et la position actuelle.', icon: <User size={14}/> },
+  { id: 'linkedin', name: 'LinkedIn Deep Search', query: 'Recherche de profils, posts, ou commentaires LinkedIn pertinents (site:linkedin.com).', icon: <Linkedin size={14}/> },
+  { id: 'corporate', name: 'Corporate & Business Registers', query: 'Vérification sur Pappers, Societe.com, OpenCorporates ou Crunchbase pour des affiliations d\'entreprise ou des statuts de dirigeant.', icon: <Briefcase size={14}/> },
+  { id: 'username', name: 'Username & Alias Cross-Match', query: 'Transformation de l\'email en pseudo, recherche sur Reddit, GitHub, forums de jeux et bases de données tierces.', icon: <Fingerprint size={14}/> },
+  { id: 'facebook', name: 'Facebook Profiling', query: 'Analyse des pages publiques, groupes, et profils Facebook (site:facebook.com).', icon: <Facebook size={14}/> },
+  { id: 'twitter', name: 'Twitter / X Footprint', query: 'Recherche de tweets, interactions, ou comptes associés sur Twitter/X (site:twitter.com).', icon: <Twitter size={14}/> },
+  { id: 'images', name: 'Media & Image Footprint', query: 'Recherche d\'images, avatars, ou de portfolios associés (Instagram, Pinterest, Flickr, Google Images).', icon: <ImageIcon size={14}/> },
+  { id: 'documents', name: 'Public Documents (PDF/DOC)', query: 'Recherche de fichiers indexés (filetype:pdf, doc, xls, csv) contenant cette cible.', icon: <Database size={14}/> },
+  { id: 'leaks', name: 'Data Leaks & Breaches', query: 'Recherche ciblée de la cible dans des mentions publiques de fuites de données (Pastebin, serveurs compromis).', icon: <ShieldAlert size={14}/> },
 ];
 
 export default function App() {
@@ -205,6 +209,24 @@ export default function App() {
                         <div className="flex justify-between pb-1">
                           <span className="text-sm text-slate-500">Intl Format</span>
                           <span className="text-sm font-medium text-slate-200">{phoneData.international}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {report?.inferredIdentity && (
+                      <div className="mt-4 pt-4 border-t border-slate-800/50 space-y-3 p-4 bg-slate-950/40 rounded-lg">
+                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-sky-500 flex items-center gap-2 mb-2">
+                          <User size={12} className="text-sky-400" /> Identity Resolution
+                        </h4>
+                        <div className="flex justify-between border-b border-slate-800/50 pb-2">
+                          <span className="text-sm text-slate-500">Subject Name</span>
+                          <span className="text-sm font-bold text-sky-400">{report.inferredIdentity.name || 'Unknown'}</span>
+                        </div>
+                        <div className="flex justify-between pb-1">
+                          <span className="text-sm text-slate-500">Occupation / Role</span>
+                          <span className="text-sm font-medium text-slate-200">
+                            {report.inferredIdentity.role} {report.inferredIdentity.organization ? ` @ ${report.inferredIdentity.organization}` : ''}
+                          </span>
                         </div>
                       </div>
                     )}
