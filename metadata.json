@@ -1,0 +1,6 @@
+{
+  "name": "OSINT Nexus",
+  "description": "Application d'OSINT propulsée par l'IA pour analyser les numéros de téléphone et adresses email. Inclut la géolocalisation, les recherches sociales, les vérifications de fuites (HIBP) et un assistant IA interactif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
