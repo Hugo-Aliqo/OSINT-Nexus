@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Terminal, ShieldAlert, Globe, MapPin, Smartphone, Mail, Send, Database, Bot, ExternalLink, AlertTriangle, CheckCircle, Linkedin, Twitter, Facebook, Instagram, Github, Youtube, MessageCircle } from 'lucide-react';
-import { identifyTargetType, parsePhoneData, generateGoogleDorks, generateQuickLinks } from './lib/osintHelpers';
-import { scanTarget, askOsintQuestion, OsintReport, ChatMessage } from './services/osintAgent';
+import { Search, Terminal, ShieldAlert, Globe, MapPin, Smartphone, Mail, Send, Database, Bot, ExternalLink, AlertTriangle, CheckCircle, Linkedin, Twitter, Facebook, Instagram, Github, Youtube, MessageCircle, Play, Loader2 } from 'lucide-react';
+import { identifyTargetType, parsePhoneData } from './lib/osintHelpers';
+import { scanTarget, askOsintQuestion, OsintReport, ChatMessage, runOsintModule, ModuleResult } from './services/osintAgent';
 
 const getSocialIcon = (platform: string) => {
   const p = platform.toLowerCase();
@@ -14,6 +14,14 @@ const getSocialIcon = (platform: string) => {
   if (p.includes('whatsapp') || p.includes('telegram') || p.includes('signal')) return <MessageCircle size={14} />;
   return <CheckCircle size={14} />;
 };
+
+const OSINT_MODULES = [
+  { id: 'linkedin', name: 'LinkedIn Deep Search', query: 'site:linkedin.com', icon: <Linkedin size={14}/> },
+  { id: 'facebook', name: 'Facebook Profiling', query: 'site:facebook.com', icon: <Facebook size={14}/> },
+  { id: 'twitter', name: 'Twitter / X Footprint', query: 'site:twitter.com', icon: <Twitter size={14}/> },
+  { id: 'documents', name: 'Public Documents (PDF/DOC/XLS)', query: 'filetype:pdf OR filetype:doc OR filetype:xls', icon: <Database size={14}/> },
+  { id: 'leaks', name: 'Data Leaks & Breaches (Pastebin/etc)', query: 'pastebin OR leak OR breach OR password', icon: <ShieldAlert size={14}/> },
+];
 
 export default function App() {
   const [targetInput, setTargetInput] = useState('');
@@ -28,6 +36,10 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatting, setIsChatting] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'modules'>('overview');
+  const [moduleResults, setModuleResults] = useState<Record<string, ModuleResult>>({});
+  const [runningModules, setRunningModules] = useState<Record<string, boolean>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -85,6 +97,19 @@ export default function App() {
     }
   };
 
+  const executeModule = async (moduleId: string, name: string, query: string) => {
+    if (!target) return;
+    setRunningModules(prev => ({...prev, [moduleId]: true}));
+    try {
+        const res = await runOsintModule(target, name, query);
+        setModuleResults(prev => ({...prev, [moduleId]: res}));
+    } catch(e) {
+        setModuleResults(prev => ({...prev, [moduleId]: { title: 'Erreur', description: 'Failed to run module.', findings: [] }}));
+    } finally {
+        setRunningModules(prev => ({...prev, [moduleId]: false}));
+    }
+  };
+
   return (
     <div className="h-screen w-full bg-slate-950 text-slate-200 font-sans overflow-hidden flex flex-col">
       {/* Header Section */}
@@ -124,19 +149,24 @@ export default function App() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Optional Sidebar Navigation */}
+        {/* Sidebar Navigation */}
         <nav className="hidden lg:flex w-16 xl:w-20 border-r border-slate-800 flex-col items-center py-6 gap-8 bg-slate-900/30">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-slate-800 text-sky-400 cursor-pointer shadow-sm">
+          <div 
+            onClick={() => setActiveTab('overview')}
+            className={`w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer transition-all shadow-sm ${activeTab === 'overview' ? 'bg-slate-800 text-sky-400' : 'text-slate-500 hover:bg-slate-800 hover:text-sky-400'}`}
+            title="Overview"
+          >
             <Globe className="w-5 h-5" />
           </div>
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-800 text-slate-500 hover:text-sky-400 cursor-pointer transition-all">
+          <div 
+            onClick={() => setActiveTab('modules')}
+            className={`w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer transition-all shadow-sm ${activeTab === 'modules' ? 'bg-slate-800 text-sky-400' : 'text-slate-500 hover:bg-slate-800 hover:text-sky-400'}`}
+            title="Deep Scan Modules"
+          >
             <Search className="w-5 h-5" />
           </div>
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center hover:bg-slate-800 text-slate-500 hover:text-sky-400 cursor-pointer transition-all">
-            <Database className="w-5 h-5" />
-          </div>
           <div className="mt-auto mb-2 opacity-50">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold border border-slate-600 shadow-inner">JD</div>
+            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold border border-slate-600 shadow-inner">AE</div>
           </div>
         </nav>
 
@@ -152,6 +182,8 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-6 max-w-5xl mx-auto pb-10">
+                {activeTab === 'overview' ? (
+                  <>
                   {/* TARGET OVERVIEW CARD */}
                   <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 relative overflow-hidden group shadow-lg">
                     <div className="absolute top-0 left-0 w-1 h-full bg-sky-500 opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -196,51 +228,6 @@ export default function App() {
                       </div>
                     )}
                   </section>
-
-                  {/* QUICK LINKS & DORKS GRID */}
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    {/* Quick Links */}
-                    <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                        <ShieldAlert size={14}/> Quick Links
-                      </h3>
-                      <div className="space-y-3">
-                        {generateQuickLinks(target, targetType).map((link, i) => (
-                          <a 
-                            key={i} href={link.url} target="_blank" rel="noopener noreferrer"
-                            className="group p-3 border border-slate-800/80 bg-slate-950/30 rounded-lg hover:border-sky-500/30 hover:bg-slate-800/50 transition-all flex flex-col gap-1.5"
-                          >
-                            <div className="flex justify-between items-center text-slate-200">
-                              <span className="text-sm font-semibold">{link.name}</span>
-                              <ExternalLink size={14} className="text-slate-600 group-hover:text-sky-400 transition-colors" />
-                            </div>
-                            <p className="text-[11px] text-slate-400 leading-relaxed font-light">{link.description}</p>
-                          </a>
-                        ))}
-                        {generateQuickLinks(target, targetType).length === 0 && (
-                          <p className="text-sm text-slate-500 italic">No specific tools for this format.</p>
-                        )}
-                      </div>
-                    </section>
-
-                    {/* Google Dorking Suggestions */}
-                    <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col shadow-lg">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                        <Database size={14}/> Google Dorking Suggestions
-                      </h3>
-                      <div className="space-y-2 flex-1">
-                        {generateGoogleDorks(target).map((dork, i) => (
-                          <a 
-                            key={i} href={dork.url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center justify-between p-3 border border-slate-800/80 bg-slate-950/30 rounded-lg hover:bg-slate-800/50 text-sm font-medium text-slate-300 hover:text-sky-400 hover:border-sky-500/30 transition-all"
-                          >
-                            <span>{dork.name}</span>
-                            <ExternalLink size={14} className="text-slate-600"/>
-                          </a>
-                        ))}
-                      </div>
-                    </section>
-                  </div>
 
                   {/* INTEGRATED RECONNAISSANCE ENGINE */}
                   <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 relative overflow-hidden shadow-lg">
@@ -347,7 +334,83 @@ export default function App() {
                        <div className="text-slate-500 text-sm py-8 italic text-center">Report will populate after intelligence gathering.</div>
                      )}
                   </section>
+                  </>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
+                      <div>
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-slate-200 flex items-center gap-2">
+                           <Search size={16} className="text-sky-400"/> Deep Scan Modules
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">Execute contextual searches via AI integration without leaving the dashboard.</p>
+                      </div>
+                    </div>
 
+                    <div className="grid grid-cols-1 gap-4">
+                      {OSINT_MODULES.map((mod) => {
+                        const isRunning = runningModules[mod.id] || false;
+                        const result = moduleResults[mod.id];
+
+                        return (
+                          <div key={mod.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col gap-4 transition-all">
+                            <div className="flex justify-between items-center flex-wrap gap-4">
+                              <div className="flex items-center gap-3">
+                                <span className="p-2 bg-slate-800/80 text-sky-400 rounded-lg shadow-inner">
+                                  {mod.icon}
+                                </span>
+                                <div>
+                                  <h4 className="text-sm font-bold text-slate-200">{mod.name}</h4>
+                                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">{mod.query}</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => executeModule(mod.id, mod.name, mod.query)}
+                                disabled={isRunning || !target}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-sky-400 text-xs font-bold rounded-lg border border-slate-700 transition-colors shadow-sm"
+                              >
+                                {isRunning ? (
+                                  <><Loader2 size={14} className="animate-spin" /> SCANNING</>
+                                ) : (
+                                  <><Play size={14} /> EXECUTE</>
+                                )}
+                              </button>
+                            </div>
+
+                            {/* Results Area */}
+                            {result && (
+                              <div className="mt-2 pt-4 border-t border-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <h5 className="text-[11px] font-bold text-sky-400 tracking-widest uppercase mb-1">{result.title}</h5>
+                                <p className="text-xs text-slate-400 mb-4 bg-slate-950/40 p-3 rounded-lg border border-slate-800/50">{result.description}</p>
+                                
+                                {result.findings.length > 0 ? (
+                                  <ul className="space-y-3">
+                                    {result.findings.map((f, idx) => (
+                                      <li key={idx} className="bg-slate-950/50 border border-slate-800/80 p-3 rounded-lg">
+                                        <div className="flex justify-between items-start gap-4">
+                                          <div className="flex-1">
+                                            <span className="text-xs font-bold text-slate-200 block mb-1">{f.title}</span>
+                                            <span className="text-[11px] text-slate-400 block leading-relaxed">{f.details}</span>
+                                          </div>
+                                          {f.sourceUrl && f.sourceUrl !== '' && (
+                                            <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-slate-800 hover:bg-sky-500/20 text-slate-400 hover:text-sky-400 rounded transition-colors" title="View Source">
+                                              <ExternalLink size={14} />
+                                            </a>
+                                          )}
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <div className="text-xs text-slate-500 italic p-3 bg-slate-950/20 rounded-lg border border-slate-800/50">No verifiable data surfaced for this module.</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

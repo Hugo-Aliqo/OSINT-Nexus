@@ -151,3 +151,66 @@ Cible analytique : ${target}\n`;
 
     return response.text || "Erreur de génération.";
 }
+
+export interface ModuleResult {
+  title: string;
+  description: string;
+  findings: Array<{
+    title: string;
+    details: string;
+    sourceUrl?: string; // empty string if not found
+  }>;
+}
+
+export async function runOsintModule(target: string, moduleName: string, contextQuery: string): Promise<ModuleResult> {
+    const response = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: `En tant qu'agent OSINT professionnel, exécute le module "${moduleName}" sur la cible "${target}".
+Ta requête d'investigation principale est concentrée sur : "${contextQuery}"
+
+Instructions pour l'agent:
+1. Tu DOIS utiliser l'outil googleSearch pour vérifier concrètement. Exécute les dorks ou les requêtes nécessaires pour répondre à la ligne métier de ce module.
+2. Synthétise les vrais résultats (liens, snippets, titres) trouvés.
+3. Si rien n'est pertinent pour la requête, précise qu'aucune donnée spécifique n'a pu être confirmée.
+
+Réponds STRICTEMENT en JSON :`,
+        tools: [{ googleSearch: {} }],
+        config: {
+            responseMimeType: "application/json",
+            systemInstruction: "Tu es un module individuel d'analyse OSINT. Tu reçois une commande, tu exécutes la recherche spécifique sur Google, puis tu extrais les détails techniques et sources (url) de manière pragmatique.",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    title: { type: Type.STRING, description: "Titre du résultat global (ex: 'Rapport: LinkedIn Deep Search')" },
+                    description: { type: Type.STRING, description: "Synthèse de ce qui a été découvert ou cherché." },
+                    findings: {
+                        type: Type.ARRAY,
+                        description: "Liste des découvertes spécifiques.",
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                title: { type: Type.STRING, description: "Nom ou entête du snippet" },
+                                details: { type: Type.STRING, description: "Description ou information extraite" },
+                                sourceUrl: { type: Type.STRING, description: "Lien URL vers la source si disponible. Vide si introuvable." }
+                            },
+                            required: ["title", "details", "sourceUrl"]
+                        }
+                    }
+                },
+                required: ["title", "description", "findings"]
+            }
+        }
+    });
+
+    const text = response.text || "{}";
+    try {
+        return JSON.parse(text) as ModuleResult;
+    } catch (e) {
+        console.error("Failed to parse Module report", text);
+        return {
+            title: "Erreur Cible",
+            description: "Format inattendu rendu par l'IA.",
+            findings: []
+        };
+    }
+}
