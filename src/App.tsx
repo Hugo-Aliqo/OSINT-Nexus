@@ -2,6 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Terminal, ShieldAlert, Globe, MapPin, Smartphone, Mail, Send, Database, Bot, ExternalLink, AlertTriangle, CheckCircle, Linkedin, Twitter, Facebook, Instagram, Github, Youtube, MessageCircle, Play, Loader2, User, Briefcase, Fingerprint, Image as ImageIcon } from 'lucide-react';
 import { identifyTargetType, parsePhoneData } from './lib/osintHelpers';
 import { scanTarget, askOsintQuestion, OsintReport, ChatMessage, runOsintModule, ModuleResult } from './services/osintAgent';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+
+// Fix for default Leaflet icon in React
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png'
+});
 
 const getSocialIcon = (platform: string) => {
   const p = platform.toLowerCase();
@@ -215,18 +225,35 @@ export default function App() {
 
                     {report?.inferredIdentity && (
                       <div className="mt-4 pt-4 border-t border-slate-800/50 space-y-3 p-4 bg-slate-950/40 rounded-lg">
-                        <h4 className="text-[10px] font-bold uppercase tracking-widest text-sky-500 flex items-center gap-2 mb-2">
-                          <User size={12} className="text-sky-400" /> Identity Resolution
-                        </h4>
-                        <div className="flex justify-between border-b border-slate-800/50 pb-2">
-                          <span className="text-sm text-slate-500">Subject Name</span>
-                          <span className="text-sm font-bold text-sky-400">{report.inferredIdentity.name || 'Unknown'}</span>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-[10px] font-bold uppercase tracking-widest text-sky-500 flex items-center gap-2">
+                            <User size={12} className="text-sky-400" /> Identity Resolution
+                          </h4>
+                          {report.inferredIdentity.profilePictureUrl && (
+                            <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">AVATAR CAPTURED</span>
+                          )}
                         </div>
-                        <div className="flex justify-between pb-1">
-                          <span className="text-sm text-slate-500">Occupation / Role</span>
-                          <span className="text-sm font-medium text-slate-200">
-                            {report.inferredIdentity.role} {report.inferredIdentity.organization ? ` @ ${report.inferredIdentity.organization}` : ''}
-                          </span>
+                        <div className="flex items-start gap-4">
+                          {report.inferredIdentity.profilePictureUrl && (
+                            <div className="w-16 h-16 rounded overflow-hidden border border-slate-700 shrink-0 shadow-sm relative group bg-slate-900">
+                               <img src={report.inferredIdentity.profilePictureUrl} alt="Target Avatar" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" referrerPolicy="no-referrer" />
+                               <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Search size={14} className="text-sky-400" />
+                               </div>
+                            </div>
+                          )}
+                          <div className="flex-1 space-y-2">
+                            <div className="flex justify-between border-b border-slate-800/50 pb-2">
+                              <span className="text-sm text-slate-500">Subject Name</span>
+                              <span className="text-sm font-bold text-sky-400">{report.inferredIdentity.name || 'Unknown'}</span>
+                            </div>
+                            <div className="flex justify-between pb-1">
+                              <span className="text-sm text-slate-500">Occupation / Role</span>
+                              <span className="text-sm font-medium text-slate-200">
+                                {report.inferredIdentity.role} {report.inferredIdentity.organization ? ` @ ${report.inferredIdentity.organization}` : ''}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -246,6 +273,24 @@ export default function App() {
                           <div className="text-[11px] text-slate-400 font-light flex items-center gap-1.5">
                             <span className="text-slate-500 font-medium">SOURCE:</span> {report.geolocation.source}
                           </div>
+                          {report.geolocation.coordinates && report.geolocation.coordinates.length === 2 && (
+                             <div className="h-48 w-full mt-3 rounded-md overflow-hidden border border-slate-700/50 relative z-0">
+                               <MapContainer center={report.geolocation.coordinates as [number, number]} zoom={10} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                                 <TileLayer
+                                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                 />
+                                 <Marker position={report.geolocation.coordinates as [number, number]}>
+                                   <Popup>
+                                     <div className="font-mono text-xs text-slate-800 font-bold">
+                                       {report.geolocation.location}
+                                     </div>
+                                   </Popup>
+                                 </Marker>
+                               </MapContainer>
+                               <style>{`.leaflet-container { z-index: 0 !important; }`}</style>
+                             </div>
+                          )}
                         </div>
                       </div>
                     )}

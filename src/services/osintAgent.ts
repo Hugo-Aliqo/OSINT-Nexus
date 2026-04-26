@@ -8,6 +8,7 @@ export interface OsintReport {
     name: string;
     role: string;
     organization: string;
+    profilePictureUrl?: string;
   } | null;
   socialMediaMentions: Array<{
     platform: string;
@@ -23,6 +24,7 @@ export interface OsintReport {
   }>;
   geolocation?: {
     location: string;
+    coordinates?: [number, number];
     confidence: string;
     source: string;
   } | null;
@@ -41,9 +43,10 @@ Tu DOIS intégrer virtuellement les résultats des outils en effectuant des requ
 3. "Data Leak Checker (HIBP/etc)": "${target}" AND ("pastebin" OR "leak" OR "breach" OR "password")
 4. "Document Scanner": filetype:pdf OR filetype:doc "${target}"
 5. "Reverse Lookup": Recherche globale de la cible "${target}"
+6. "Reverse Image Search": Si tu trouves un profil public ou avatar de la cible (via Social Discovery ou Identity & Records), tu dois explicitement indiquer l'URL publique de cette image dans le champ 'profilePictureUrl'. Tu simules ici un scan d'images inversées pour vérifier la provenance du visage/avatar de la personne et l'inférer dans tes résultats. Si possible, retourne également les coordonnées GPS associées au lieu identifié sous forme de [latitude, longitude].
 
 Rassemble toutes les informations. Conçois ton rapport avec précision.
-Fournis un bilan des outils dans 'integratedTools'. Pour chaque outil (ex: "Social Media Scanner", "Data Leak Checker", "Public Records Search"), définis son 'status' (ex: "No leaks found", "Profiles detected", "Clean") et résume ses 'findings'.
+Fournis un bilan des outils dans 'integratedTools'. Pour chaque outil (ex: "Social Media Scanner", "Data Leak Checker", "Public Records Search", "Reverse Image Search"), définis son 'status' (ex: "No leaks found", "Profiles detected", "Found Avatar") et résume ses 'findings'.
 
 Réponds STRICTEMENT en JSON suivant le schéma fourni.`,
     tools: [
@@ -58,12 +61,13 @@ Réponds STRICTEMENT en JSON suivant le schéma fourni.`,
           summary: { type: Type.STRING, description: "Résumé de l'analyse OSINT et des conclusions tirées des modules intégrés." },
           inferredIdentity: {
             type: Type.OBJECT,
-            description: "Identité déduite de la cible (nom, prénom, profession). Null si intraçable.",
+            description: "Identité déduite de la cible (nom, prénom, profession, image). Null si intraçable.",
             nullable: true,
             properties: {
               name: { type: Type.STRING, description: "Nom complet déduit (ex: 'Jean Dupont')" },
               role: { type: Type.STRING, description: "Profession ou statut détecté (ex: 'Développeur', 'Étudiant')" },
-              organization: { type: Type.STRING, description: "Entreprise, école ou affiliation" }
+              organization: { type: Type.STRING, description: "Entreprise, école ou affiliation" },
+              profilePictureUrl: { type: Type.STRING, description: "URL publique de l'image de profil/avatar si trouvée. Facultatif, peut être vide." }
             },
             required: ["name", "role", "organization"]
           },
@@ -87,7 +91,7 @@ Réponds STRICTEMENT en JSON suivant le schéma fourni.`,
             items: {
               type: Type.OBJECT,
               properties: {
-                toolName: { type: Type.STRING, description: "Nom du module intégré (ex: 'Identity Resolver', 'Social Media Scanner', 'Hashes & Leaks Engine')." },
+                toolName: { type: Type.STRING, description: "Nom du module intégré (ex: 'Identity Resolver', 'Social Media Scanner', 'Hashes & Leaks Engine', 'Reverse Image Search')." },
                 status: { type: Type.STRING, description: "Statut court du module (ex: 'Found Name', 'Alert', 'Clear', 'Found 2 Matches')." },
                 findings: { type: Type.STRING, description: "Résumé spécifique d'une phrase des découvertes du module." }
               },
@@ -101,6 +105,11 @@ Réponds STRICTEMENT en JSON suivant le schéma fourni.`,
             nullable: true,
             properties: {
               location: { type: Type.STRING, description: "La localisation (ex: 'Paris, France', 'US (indicatif)')" },
+              coordinates: {
+                type: Type.ARRAY,
+                description: "Latitude et Longitude du lieu (ex: [48.8566, 2.3522]).",
+                items: { type: Type.NUMBER }
+              },
               confidence: { type: Type.STRING, description: "Niveau de confiance (ex: 'Élevé', 'Moyen', 'Faible')" },
               source: { type: Type.STRING, description: "Source de la localisation (ex: 'Indicatif téléphonique', 'LinkedIn', 'Fuite de données')" }
             },
